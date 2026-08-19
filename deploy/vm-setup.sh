@@ -42,9 +42,10 @@ echo "kind: $UNIT"
 
 # --- 1. enable prometheus metrics in the INI ---
 [ -f "$INI" ] || { echo "ERROR: $INI not found" >&2; exit 1; }
+BEFORE=$(md5sum "$INI" | cut -d' ' -f1)
 if grep -Eq '^\s*prometheus_interval:' "$INI"; then
-  sed -i 's/^\s*prometheus_interval:.*/prometheus_interval: 60/' "$INI"
-  echo "prometheus_interval already present - set to 60"
+  # Already enabled - respect whatever interval the operator chose.
+  echo "prometheus_interval already set ($(grep -E '^\s*prometheus_interval:' "$INI" | head -1 | tr -d ' ')) - leaving as is"
 elif grep -q '^\[STORE_LOG\]' "$INI"; then
   sed -i '/^\[STORE_LOG\]/a prometheus_interval: 60' "$INI"
   echo "prometheus_interval: 60 added under [STORE_LOG]"
@@ -52,8 +53,19 @@ else
   printf '\n[STORE_LOG]\nprometheus_interval: 60\n' >> "$INI"
   echo "[STORE_LOG] section with prometheus_interval added"
 fi
-systemctl restart "$UNIT"
-echo "$UNIT restarted"
+# Restart only when the config actually changed - never bounce a healthy
+# production server for a no-op edit. Set NO_RESTART=1 to defer the restart
+# to your own maintenance window (metrics start after the next restart).
+if [ "$(md5sum "$INI" | cut -d' ' -f1)" != "$BEFORE" ]; then
+  if [ "${NO_RESTART:-0}" = "1" ]; then
+    echo "config changed - restart DEFERRED (NO_RESTART=1); run: systemctl restart $UNIT"
+  else
+    systemctl restart "$UNIT"
+    echo "$UNIT restarted to apply the config change"
+  fi
+else
+  echo "config unchanged - no restart needed"
+fi
 
 # --- 2. node_exporter + textfile symlink ---
 export DEBIAN_FRONTEND=noninteractive
