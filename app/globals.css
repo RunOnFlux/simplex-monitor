@@ -93,3 +93,58 @@ body {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* --- interaction polish --- */
+
+/* Tailwind 4's reset drops the pointer cursor on buttons; restore it. */
+button:not(:disabled) {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+button,
+a,
+.card {
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+button:not(:disabled):hover {
+  opacity: 0.85;
+}
+
+/* Server cards on the fleet page light up their edge on hover. */
+a.card:hover {
+  border-color: var(--baseline);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Nav links get a soft wash (background is not set inline, so this applies). */
+nav a:hover {
+  background: var(--page);
+}
+
+/* Table rows in incidents/audit respond to the pointer. */
+.card tbody tr:hover {
+  background: var(--page);
+}
+
+/* Visible keyboard focus everywhere. */
+:is(button, a, input):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+input {
+  transition: border-color 0.15s ease;
+}
+input:focus {
+  border-color: var(--accent) !important;
+}
