@@ -1,0 +1,22 @@
+[Unit]
+Description=SimpleX Monitor dashboard (Next.js)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=simplexmonitor
+Group=simplexmonitor
+WorkingDirectory=/opt/simplex-monitor/app
+EnvironmentFile=/opt/simplex-monitor/app/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/yarn start
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/opt/simplex-monitor/app/data
+
+[Install]
+WantedBy=multi-user.target

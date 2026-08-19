@@ -1,0 +1,124 @@
+{
+  "servers": [
+    {
+      "id": "smp1",
+      "name": "smp1.simplexonflux.com",
+      "kind": "smp",
+      "host": "smp1.simplexonflux.com",
+      "port": 5223,
+      "fingerprint": "xQW_ufMkGE20UrTlBl8QqceG1tbuylXhr9VOLPyRJmw=",
+      "onion": "qb4yoanyl4p7o33yrknv4rs6qo7ugeb2tu2zo66sbebezs4cpyosarid.onion",
+      "ssh": { "host": "smp1.simplexonflux.com", "user": "smmonitor", "port": 22 }
+    },
+    {
+      "id": "smp2",
+      "name": "smp2.simplexonflux.com",
+      "kind": "smp",
+      "host": "smp2.simplexonflux.com",
+      "port": 5223,
+      "fingerprint": "LDnWZVlAUInmjmdpQQoIo6FUinRXGe0q3zi5okXDE4s=",
+      "onion": "yiqtuh3q4x7hgovkomafsod52wvfjucdljqbbipg5sdssnklgongxbqd.onion",
+      "ssh": { "host": "smp2.simplexonflux.com", "user": "smmonitor", "port": 22 }
+    },
+    {
+      "id": "smp3",
+      "name": "smp3.simplexonflux.com",
+      "kind": "smp",
+      "host": "smp3.simplexonflux.com",
+      "port": 5223,
+      "fingerprint": "1jne379u7IDJSxAvXbWb_JgoE7iabcslX0LBF22Rej0=",
+      "onion": "a5lm4k7ufei66cdck6fy63r4lmkqy3dekmmb7jkfdm5ivi6kfaojshad.onion",
+      "ssh": { "host": "smp3.simplexonflux.com", "user": "smmonitor", "port": 22 }
+    },
+    {
+      "id": "smp4",
+      "name": "smp4.simplexonflux.com",
+      "kind": "smp",
+      "host": "smp4.simplexonflux.com",
+      "port": 5223,
+      "fingerprint": "xmAmqj75I9mWrUihLUlI0ZuNLXlIwFIlHRq5Pb6cHAU=",
+      "onion": "qpcz2axyy66u26hfdd2e23uohcf3y6c36mn7dcuilcgnwjasnrvnxjqd.onion",
+      "ssh": { "host": "smp4.simplexonflux.com", "user": "smmonitor", "port": 22 }
+    },
+    {
+      "id": "smp5",
+      "name": "smp5.simplexonflux.com",
+      "kind": "smp",
+      "host": "smp5.simplexonflux.com",
+      "port": 5223,
+      "fingerprint": "rWvBYyTamuRCBYb_KAn-nsejg879ndhiTg5Sq3k0xWA=",
+      "onion": "4ao347qwiuluyd45xunmii4skjigzuuox53hpdsgbwxqafd4yrticead.onion",
+      "ssh": { "host": "smp5.simplexonflux.com", "user": "smmonitor", "port": 22 }
+    },
+    {
+      "id": "smp6",
+      "name": "smp6.simplexonflux.com",
+      "kind": "smp",
+      "host": "smp6.simplexonflux.com",
+      "port": 5223,
+      "fingerprint": "PN7-uqLBToqlf1NxHEaiL35lV2vBpXq8Nj8BW11bU48=",
+      "onion": "hury6ot3ymebbr2535mlp7gcxzrjpc6oujhtfxcfh2m4fal4xw5fq6qd.onion",
+      "ssh": { "host": "smp6.simplexonflux.com", "user": "smmonitor", "port": 22 }
+    },
+    {
+      "id": "xftp1",
+      "name": "xftp1.simplexonflux.com",
+      "kind": "xftp",
+      "host": "xftp1.simplexonflux.com",
+      "port": 443,
+      "fingerprint": "92Sctlc09vHl_nAqF2min88zKyjdYJ9mgxRCJns5K2U=",
+      "onion": "apl3pumq3emwqtrztykyyoomdx4dg6ysql5zek2bi3rgznz7ai3odkid.onion",
+      "ssh": { "host": "xftp1.simplexonflux.com", "user": "smmonitor", "port": 22 }
+    },
+    {
+      "id": "xftp2",
+      "name": "xftp2.simplexonflux.com",
+      "kind": "xftp",
+      "host": "xftp2.simplexonflux.com",
+      "port": 443,
+      "fingerprint": "YBXy4f5zU1CEhnbbCzVWTNVNsaETcAGmYqGNxHntiE8=",
+      "onion": "c5jjecisncnngysah3cz2mppediutfelco4asx65mi75d44njvua3xid.onion",
+      "ssh": { "host": "xftp2.simplexonflux.com", "user": "smmonitor", "port": 22 }
+    },
+    {
+      "id": "xftp3",
+      "name": "xftp3.simplexonflux.com",
+      "kind": "xftp",
+      "host": "xftp3.simplexonflux.com",
+      "port": 443,
+      "fingerprint": "ARQO74ZSvv2OrulRF3CdgwPz_AMy27r0phtLSq5b664=",
+      "onion": "dc4mohiubvbnsdfqqn7xhlhpqs5u4tjzp7xpz6v6corwvzvqjtaqqiqd.onion",
+      "ssh": { "host": "xftp3.simplexonflux.com", "user": "smmonitor", "port": 22 }
+    },
+    {
+      "id": "xftp4",
+      "name": "xftp4.simplexonflux.com",
+      "kind": "xftp",
+      "host": "xftp4.simplexonflux.com",
+      "port": 443,
+      "fingerprint": "ub2jmAa9U0uQCy90O-fSUNaYCj6sdhl49Jh3VpNXP58=",
+      "onion": "4qq5pzier3i4yhpuhcrhfbl6j25udc4czoyascrj4yswhodhfwev3nyd.onion",
+      "ssh": { "host": "xftp4.simplexonflux.com", "user": "smmonitor", "port": 22 }
+    },
+    {
+      "id": "xftp5",
+      "name": "xftp5.simplexonflux.com",
+      "kind": "xftp",
+      "host": "xftp5.simplexonflux.com",
+      "port": 443,
+      "fingerprint": "Rh19D5e4Eez37DEE9hAlXDB3gZa1BdFYJTPgJWPO9OI=",
+      "onion": "q7itltdn32hjmgcqwhow4tay5ijetng3ur32bolssw32fvc5jrwvozad.onion",
+      "ssh": { "host": "xftp5.simplexonflux.com", "user": "smmonitor", "port": 22 }
+    },
+    {
+      "id": "xftp6",
+      "name": "xftp6.simplexonflux.com",
+      "kind": "xftp",
+      "host": "xftp6.simplexonflux.com",
+      "port": 443,
+      "fingerprint": "0AznwoyfX8Od9T_acp1QeeKtxUi676IBIiQjXVwbdyU=",
+      "onion": "upvzf23ou6nrmaf3qgnhd6cn3d74tvivlmz3p7wdfwq6fhthjrjiiqid.onion",
+      "ssh": { "host": "xftp6.simplexonflux.com", "user": "smmonitor", "port": 22 }
+    }
+  ]
+}

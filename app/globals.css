@@ -1,0 +1,95 @@
+@import 'tailwindcss';
+
+/*
+ * Theme tokens. Light is the base; dark overrides come from either the OS
+ * preference (no explicit choice) or the data-theme attribute (manual toggle),
+ * and the manual toggle must win in both directions.
+ */
+:root {
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-muted: #898781;
+  --grid: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --accent: #b45309;
+  --accent-bg: #fbbf24;
+  --accent-bg-ink: #1a1a19;
+
+  --series-1: #2a78d6; /* IPv4 */
+  --series-2: #eb6834; /* IPv6 */
+  --series-3: #1baf7a; /* Tor */
+
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+  --status-nodata: #c3c2b7;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) {
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --accent: #fbbf24;
+    --accent-bg: #fbbf24;
+    --accent-bg-ink: #1a1a19;
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+
+    --status-nodata: #383835;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --ink-muted: #898781;
+  --grid: #2c2c2a;
+  --baseline: #383835;
+  --border: rgba(255, 255, 255, 0.1);
+  --accent: #fbbf24;
+  --accent-bg: #fbbf24;
+  --accent-bg-ink: #1a1a19;
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+
+  --status-nodata: #383835;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

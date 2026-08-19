@@ -1,0 +1,37 @@
+# Prometheus config for the SimpleX Monitor VPS.
+# Each VM runs node_exporter on :9100 (host metrics + SimpleX metrics via the
+# textfile collector symlink) with the port firewalled to this VPS's IP only.
+global:
+  scrape_interval: 60s
+  evaluation_interval: 60s
+
+scrape_configs:
+  - job_name: simplex
+    static_configs:
+      - targets: ['smp1.simplexonflux.com:9100']
+        labels: { server: smp1, kind: smp }
+      - targets: ['smp2.simplexonflux.com:9100']
+        labels: { server: smp2, kind: smp }
+      - targets: ['smp3.simplexonflux.com:9100']
+        labels: { server: smp3, kind: smp }
+      - targets: ['smp4.simplexonflux.com:9100']
+        labels: { server: smp4, kind: smp }
+      - targets: ['smp5.simplexonflux.com:9100']
+        labels: { server: smp5, kind: smp }
+      - targets: ['smp6.simplexonflux.com:9100']
+        labels: { server: smp6, kind: smp }
+      - targets: ['xftp1.simplexonflux.com:9100']
+        labels: { server: xftp1, kind: xftp }
+      - targets: ['xftp2.simplexonflux.com:9100']
+        labels: { server: xftp2, kind: xftp }
+      - targets: ['xftp3.simplexonflux.com:9100']
+        labels: { server: xftp3, kind: xftp }
+      - targets: ['xftp4.simplexonflux.com:9100']
+        labels: { server: xftp4, kind: xftp }
+      - targets: ['xftp5.simplexonflux.com:9100']
+        labels: { server: xftp5, kind: xftp }
+      - targets: ['xftp6.simplexonflux.com:9100']
+        labels: { server: xftp6, kind: xftp }
+
+# Retention is set via the systemd unit / command line, e.g.:
+#   --storage.tsdb.retention.time=180d
