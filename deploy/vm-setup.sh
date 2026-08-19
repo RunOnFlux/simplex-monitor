@@ -23,11 +23,14 @@ set -euo pipefail
 : "${PUBKEY:?Set PUBKEY to the contents of smmonitor_ed25519.pub}"
 
 # --- detect server kind ---
-if systemctl list-unit-files | grep -q '^smp-server\.service'; then
+unit_loaded() {
+  [ "$(systemctl show -p LoadState --value "$1.service" 2>/dev/null)" = "loaded" ]
+}
+if unit_loaded smp-server; then
   UNIT=smp-server
   INI=/etc/opt/simplex/smp-server.ini
   METRICS=/var/opt/simplex/smp-server-metrics.txt
-elif systemctl list-unit-files | grep -q '^xftp-server\.service'; then
+elif unit_loaded xftp-server; then
   UNIT=xftp-server
   INI=/etc/opt/simplex-xftp/xftp-server.ini
   METRICS=/var/opt/simplex-xftp/xftp-server-metrics.txt
