@@ -12,6 +12,9 @@ function getTransporter(): Transporter {
     port,
     secure,
     auth: { user, pass },
+    // Fail fast when the SMTP port is firewalled instead of hanging requests.
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
   });
   return transporter;
 }

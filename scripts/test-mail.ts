@@ -41,6 +41,10 @@ async function main(): Promise<void> {
     port: smtp.port,
     secure: smtp.secure,
     auth: { user: smtp.user, pass: smtp.pass },
+    // Fail fast instead of hanging when the port is firewalled (e.g. Hetzner
+    // blocks outbound 465 by default - use 587 with SMTP_SECURE=false there).
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
   });
 
   process.stdout.write('\n1/2 Verifying connection + login... ');
@@ -63,7 +67,7 @@ async function main(): Promise<void> {
 main().catch((err) => {
   console.error('\nFAILED:', (err as Error).message);
   console.error(
-    '\nCommon causes: wrong SMTP_PASS (Zoho needs an app-specific password if 2FA is on),\nwrong SMTP_PORT/SMTP_SECURE combo (465=true, 587=false), or the provider blocking the VPS IP.',
+    '\nCommon causes: wrong SMTP_PASS (Gmail/Zoho need an app password when 2FA is on),\nwrong SMTP_PORT/SMTP_SECURE combo (465=true, 587=false), outbound port blocked by\nthe hoster (Hetzner blocks 465 by default - use 587 + SMTP_SECURE=false), or the\nprovider blocking the VPS IP.',
   );
   process.exit(1);
 });
