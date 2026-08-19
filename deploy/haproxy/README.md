@@ -17,6 +17,9 @@ And a backend:
 backend simplex_monitor
     option forwardfor
     http-request set-header X-Forwarded-Proto https
+    # Restart requests block until the unit is fully up (the xftp units wait
+    # for Postgres), up to ~75s - don't let haproxy 504 them first.
+    timeout server 90s
     server monitor 127.0.0.1:3334
 ```
 

@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
     const result = await runSsh(server, 'logs');
     recordAudit(userEmail(request), server.id, 'logs', result.ok ? 'success' : 'failed');
     if (!result.ok) {
-      return err(502, 'SshError', result.stderr || 'SSH command failed');
+      return err(500, 'SshError', result.stderr || 'SSH command failed');
     }
     return ok({ logs: result.stdout });
   } catch (e) {

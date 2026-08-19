@@ -29,7 +29,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
     result.ok ? 'success' : `failed: ${result.stderr || result.stdout}`.slice(0, 500),
   );
   if (!result.ok) {
-    return err(502, 'SshError', result.stderr || result.stdout || 'SSH command failed');
+    return err(500, 'SshError', result.stderr || result.stdout || 'SSH command failed');
   }
   const status = await runSsh(server, service === 'tor' ? 'status-tor' : 'status');
   return ok({ restarted: true, unitState: status.stdout || 'unknown' });

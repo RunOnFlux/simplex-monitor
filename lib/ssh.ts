@@ -36,7 +36,12 @@ export interface SshResult {
 }
 
 export function runSsh(server: ServerConfig, action: SshAction): Promise<SshResult> {
-  const { keyPath, timeoutSec } = appConfig.ssh;
+  const { keyPath, timeoutSec: baseTimeout } = appConfig.ssh;
+  // systemctl restart blocks until the unit is fully up; the xftp units wait
+  // for Postgres in ExecStartPre, so restarts need far more headroom than
+  // status checks or journal reads.
+  const timeoutSec =
+    action === 'restart' || action === 'restart-tor' ? Math.max(baseTimeout, 75) : baseTimeout;
   const args = [
     '-o',
     'BatchMode=yes',

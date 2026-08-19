@@ -59,6 +59,6 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
       series,
     });
   } catch (e) {
-    return err(502, 'PrometheusError', (e as Error).message);
+    return err(500, 'PrometheusError', (e as Error).message);
   }
 }
