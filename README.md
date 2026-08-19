@@ -1,8 +1,13 @@
 # simplex-monitor
 
 Monitoring dashboard and probe engine for the SimpleX SMP/XFTP fleet
-(`smp1-6.simplexonflux.com`, `xftp1-6.simplexonflux.com`). Replaces Uptime Kuma
-and the old `service-monitor` SimpleX checks.
+(`smp1-6.simplexonflux.com`, `xftp1-6.simplexonflux.com`), run by
+[Flux](https://runonflux.com). Replaces Uptime Kuma and the old
+`service-monitor` SimpleX checks.
+
+> **Running your own SimpleX servers?** This stack is reusable: put your
+> servers (hostnames, fingerprints, onion addresses) in `config/servers.json`,
+> configure `.env`, and follow the deploy docs below. MIT licensed.
 
 ## What it does
 
