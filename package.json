@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start -p 3334",
     "prober": "tsx prober/index.ts",
+    "test:mail": "tsx scripts/test-mail.ts",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",

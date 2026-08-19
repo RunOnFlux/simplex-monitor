@@ -33,9 +33,11 @@ say "simplex-chat CLI (used by the prober for real protocol tests)"
 if [ ! -x "$SIMPLEX_CHAT_BIN" ]; then
   . /etc/os-release
   case "${VERSION_ID:-22.04}" in
-    24.*) ASSET=simplex-chat-ubuntu-24_04-x86-64 ;;
-    *)    ASSET=simplex-chat-ubuntu-22_04-x86-64 ;;
+    24.*) UBU=ubuntu-24_04 ;;
+    *)    UBU=ubuntu-22_04 ;;
   esac
+  ARCH=$(uname -m)   # x86_64 or aarch64, matching the release asset names
+  ASSET="simplex-chat-${UBU}-${ARCH}"
   curl -fL "https://github.com/simplex-chat/simplex-chat/releases/latest/download/${ASSET}" \
     -o "$SIMPLEX_CHAT_BIN"
   chmod +x "$SIMPLEX_CHAT_BIN"
