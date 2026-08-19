@@ -20,7 +20,7 @@ say() { printf '\n\033[1;33m== %s ==\033[0m\n' "$*"; }
 
 say "Base packages"
 apt-get update -y
-apt-get install -y curl git ca-certificates gnupg nginx tor prometheus ufw
+apt-get install -y curl git ca-certificates gnupg nginx tor prometheus ufw build-essential python3
 
 say "Node.js 22 + yarn"
 if ! command -v node >/dev/null || [ "$(node -v | cut -c2-3)" -lt 22 ]; then
@@ -63,10 +63,14 @@ fi
 say "Environment file"
 if [ ! -f "$APP_DIR/.env" ]; then
   cp "$APP_DIR/.env.example" "$APP_DIR/.env"
-  sed -i "s|SESSION_SECRET=.*|SESSION_SECRET=$(openssl rand -hex 32)|" "$APP_DIR/.env"
-  sed -i "s|SIMPLEX_CHAT_BIN=.*|SIMPLEX_CHAT_BIN=${SIMPLEX_CHAT_BIN}|" "$APP_DIR/.env"
   echo ">>> EDIT $APP_DIR/.env: ALLOWED_EMAILS, SMTP_*, ALERT_EMAILS <<<"
 fi
+# Fill/repair generated values even when .env already existed from a partial run
+if grep -q '^SESSION_SECRET=change-me' "$APP_DIR/.env" || ! grep -q '^SESSION_SECRET=.\+' "$APP_DIR/.env"; then
+  sed -i "s|^SESSION_SECRET=.*|SESSION_SECRET=$(openssl rand -hex 32)|" "$APP_DIR/.env"
+  echo "Generated SESSION_SECRET"
+fi
+sed -i "s|^SIMPLEX_CHAT_BIN=.*|SIMPLEX_CHAT_BIN=${SIMPLEX_CHAT_BIN}|" "$APP_DIR/.env"
 
 say "Install + build"
 chown -R "$APP_USER":"$APP_USER" /opt/simplex-monitor
