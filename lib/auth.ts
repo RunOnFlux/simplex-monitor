@@ -55,6 +55,19 @@ export function prepareOtp(
   return { result: 'sent', code };
 }
 
+/**
+ * Mints a login code without the email leg or rate limiting. Used only by the
+ * server-side CLI (`yarn issue-code`) so the dashboard stays usable when SMTP
+ * is not configured. Returns null for non-allowlisted emails.
+ */
+export function issueOtpDirect(email: string): string | null {
+  const normalized = email.trim().toLowerCase();
+  if (!isAllowedEmail(normalized)) return null;
+  const code = randomInt(0, 1000000).toString().padStart(6, '0');
+  saveOtp(normalized, hashCode(normalized, code), Date.now() + OTP_TTL_MS);
+  return code;
+}
+
 export function verifyOtp(email: string, code: string): boolean {
   const normalized = email.trim().toLowerCase();
   if (!isAllowedEmail(normalized)) return false;

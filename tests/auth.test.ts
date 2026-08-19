@@ -49,6 +49,14 @@ describe('email OTP auth', () => {
     expect(auth.verifyOtp('second@example.com', code as string)).toBe(false);
   });
 
+  it('issues CLI codes for allowlisted emails only, single use', () => {
+    expect(auth.issueOtpDirect('stranger@example.com')).toBeNull();
+    const code = auth.issueOtpDirect('Admin@Example.com');
+    expect(code).toMatch(/^\d{6}$/);
+    expect(auth.verifyOtp('admin@example.com', code as string)).toBe(true);
+    expect(auth.verifyOtp('admin@example.com', code as string)).toBe(false);
+  });
+
   it('rate limits repeated code requests per email', () => {
     const results: string[] = [];
     for (let i = 0; i < 5; i++) {

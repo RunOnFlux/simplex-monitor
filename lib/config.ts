@@ -61,6 +61,10 @@ export const appConfig = {
   get sessionDays() {
     return envInt('SESSION_DAYS', 7);
   },
+  /** SMTP is optional: without it, login codes are issued via `yarn issue-code`. */
+  get smtpConfigured(): boolean {
+    return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  },
   get smtp() {
     return {
       host: env('SMTP_HOST'),

@@ -100,6 +100,18 @@ export default function LoginPage() {
             >
               {busy ? 'Sending…' : 'Send login code'}
             </button>
+            <button
+              type="button"
+              disabled={!email.includes('@')}
+              onClick={() => {
+                setStep('code');
+                setMessage(null);
+              }}
+              className="w-full text-sm underline disabled:opacity-50"
+              style={{ color: 'var(--ink-muted)' }}
+            >
+              I already have a code
+            </button>
           </form>
         ) : (
           <form onSubmit={verify} className="space-y-3">
