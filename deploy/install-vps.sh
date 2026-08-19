@@ -51,7 +51,7 @@ mkdir -p "$APP_DIR"
 say "App code"
 if [ -n "$REPO_SRC" ]; then
   if [ -d "$REPO_SRC" ]; then
-    rsync -a --exclude node_modules --exclude .next --exclude data "$REPO_SRC/" "$APP_DIR/"
+    rsync -a --exclude node_modules --exclude .next --exclude data --exclude .env "$REPO_SRC/" "$APP_DIR/"
   elif [ ! -d "$APP_DIR/.git" ]; then
     git clone "$REPO_SRC" "$APP_DIR"
   else
