@@ -112,6 +112,13 @@
         port: '9100'
         proto: tcp
 
+    - name: Allow monitor SSH (restarts/logs) from the monitoring VPS
+      community.general.ufw:
+        rule: allow
+        port: "{{ ssh_port | default('1500') }}"
+        proto: tcp
+        from_ip: "{{ monitor_vps_ip }}"
+
     - name: Create smmonitor user (journal access, no login shell tricks)
       ansible.builtin.user:
         name: smmonitor
@@ -132,7 +139,7 @@
         mode: '0440'
         validate: 'visudo -cf %s'
         content: |
-          smmonitor ALL=(root) NOPASSWD: /usr/bin/systemctl restart {{ unit_name }}.service
+          smmonitor ALL=(root) NOPASSWD: /usr/bin/systemctl restart {{ unit_name }}.service, /usr/bin/systemctl restart tor.service
 
   handlers:
     - name: restart simplex server

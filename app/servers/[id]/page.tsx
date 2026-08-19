@@ -64,52 +64,63 @@ function duration(ms: number): string {
   return `${Math.floor(h / 24)}d ${h % 24}h`;
 }
 
+type RestartTarget = 'simplex' | 'tor';
+
+function stateColor(state: string): string {
+  return state === 'active' ? 'var(--status-good)' : 'var(--status-critical)';
+}
+
 function RestartPanel({ serverId }: { serverId: string }) {
-  const [confirming, setConfirming] = useState(false);
+  const [confirming, setConfirming] = useState<RestartTarget | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
-  const { data: status } = useApi<{ unitState: string }>(`/api/servers/${serverId}/status`, 60000);
+  const { data: status } = useApi<{ unitState: string; torState: string }>(
+    `/api/servers/${serverId}/status`,
+    60000,
+  );
 
-  const restart = async () => {
+  const restart = async (service: RestartTarget) => {
     setBusy(true);
     setResult(null);
     try {
       const res = await apiFetch<{ restarted: boolean; unitState: string }>(
         `/api/servers/${serverId}/restart`,
-        { method: 'POST' },
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ service }),
+        },
       );
-      setResult(`Restarted. Unit state: ${res.unitState}`);
+      setResult(`Restarted ${service === 'tor' ? 'Tor' : 'service'}. State: ${res.unitState}`);
     } catch (e) {
       setResult(`Restart failed: ${(e as Error).message}`);
     } finally {
       setBusy(false);
-      setConfirming(false);
+      setConfirming(null);
     }
   };
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3">
       {status && (
         <span className="text-sm" style={{ color: 'var(--ink-muted)' }}>
           unit:{' '}
-          <span
-            style={{
-              color:
-                status.unitState === 'active' ? 'var(--status-good)' : 'var(--status-critical)',
-              fontWeight: 600,
-            }}
-          >
+          <span style={{ color: stateColor(status.unitState), fontWeight: 600 }}>
             {status.unitState}
+          </span>
+          {' · tor: '}
+          <span style={{ color: stateColor(status.torState), fontWeight: 600 }}>
+            {status.torState}
           </span>
         </span>
       )}
       {confirming ? (
         <span className="flex items-center gap-2">
           <span className="text-sm" style={{ color: 'var(--ink-2)' }}>
-            Restart the service?
+            Restart {confirming === 'tor' ? 'Tor' : 'the service'}?
           </span>
           <button
-            onClick={restart}
+            onClick={() => restart(confirming)}
             disabled={busy}
             className="rounded-md px-3 py-1.5 text-sm font-medium disabled:opacity-60"
             style={{ background: 'var(--status-critical)', color: '#fff' }}
@@ -117,7 +128,7 @@ function RestartPanel({ serverId }: { serverId: string }) {
             {busy ? 'Restarting…' : 'Yes, restart'}
           </button>
           <button
-            onClick={() => setConfirming(false)}
+            onClick={() => setConfirming(null)}
             disabled={busy}
             className="rounded-md border px-3 py-1.5 text-sm"
             style={{ borderColor: 'var(--border)', color: 'var(--ink-2)' }}
@@ -126,13 +137,22 @@ function RestartPanel({ serverId }: { serverId: string }) {
           </button>
         </span>
       ) : (
-        <button
-          onClick={() => setConfirming(true)}
-          className="rounded-md px-3 py-1.5 text-sm font-medium"
-          style={{ background: 'var(--accent-bg)', color: 'var(--accent-bg-ink)' }}
-        >
-          Restart service
-        </button>
+        <span className="flex items-center gap-2">
+          <button
+            onClick={() => setConfirming('simplex')}
+            className="rounded-md px-3 py-1.5 text-sm font-medium"
+            style={{ background: 'var(--accent-bg)', color: 'var(--accent-bg-ink)' }}
+          >
+            Restart service
+          </button>
+          <button
+            onClick={() => setConfirming('tor')}
+            className="rounded-md border px-3 py-1.5 text-sm"
+            style={{ borderColor: 'var(--border)', color: 'var(--ink-2)' }}
+          >
+            Restart Tor
+          </button>
+        </span>
       )}
       {result && (
         <span className="text-sm" style={{ color: 'var(--ink-2)' }}>

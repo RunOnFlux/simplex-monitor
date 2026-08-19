@@ -19,7 +19,15 @@ export async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
     window.location.assign('/login');
     throw new Error('Login required');
   }
-  const body = (await res.json()) as ApiSuccess<T> | ApiError;
+  let body: ApiSuccess<T> | ApiError;
+  try {
+    body = (await res.json()) as ApiSuccess<T> | ApiError;
+  } catch {
+    // Non-JSON response: came from a proxy/CDN error page, not our API.
+    throw new Error(
+      `Unexpected non-JSON response (HTTP ${res.status}) - check the proxy/CDN layer`,
+    );
+  }
   if (body.status === 'error') throw new Error(body.data.message);
   return body.data;
 }

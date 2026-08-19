@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { appConfig } from './config';
 import type { ServerConfig } from './types';
 
-export type SshAction = 'restart' | 'status' | 'logs';
+export type SshAction = 'restart' | 'status' | 'logs' | 'restart-tor' | 'status-tor';
 
 function unitName(server: ServerConfig): string {
   return server.kind === 'smp' ? 'smp-server' : 'xftp-server';
@@ -11,15 +11,19 @@ function unitName(server: ServerConfig): string {
 /**
  * The remote command for each action. On the VM side the smmonitor user is
  * restricted (sudoers + authorized_keys) to exactly these commands — see
- * deploy/ansible. Never interpolate user input here.
+ * deploy/vm-setup.sh. Never interpolate user input here.
  */
 function remoteCommand(server: ServerConfig, action: SshAction): string[] {
   const unit = unitName(server);
   switch (action) {
     case 'restart':
       return ['sudo', 'systemctl', 'restart', `${unit}.service`];
+    case 'restart-tor':
+      return ['sudo', 'systemctl', 'restart', 'tor.service'];
     case 'status':
       return ['systemctl', 'is-active', `${unit}.service`];
+    case 'status-tor':
+      return ['systemctl', 'is-active', 'tor.service'];
     case 'logs':
       return ['journalctl', '-u', `${unit}.service`, '-n', '200', '--no-pager', '-o', 'short-iso'];
   }

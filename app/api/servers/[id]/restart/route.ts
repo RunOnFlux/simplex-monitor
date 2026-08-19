@@ -10,17 +10,27 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
   const { id } = await ctx.params;
   const server = getServer(id);
   if (!server) return err(404, 'NotFound', `Unknown server ${id}`);
+  let service: unknown = 'simplex';
+  try {
+    const body = (await request.json()) as { service?: unknown };
+    if (body.service !== undefined) service = body.service;
+  } catch {
+    // no body: default target
+  }
+  if (service !== 'simplex' && service !== 'tor') {
+    return err(400, 'BadRequest', 'service must be "simplex" or "tor"');
+  }
   const email = userEmail(request);
-  const result = await runSsh(server, 'restart');
+  const result = await runSsh(server, service === 'tor' ? 'restart-tor' : 'restart');
   recordAudit(
     email,
     server.id,
-    'restart',
+    service === 'tor' ? 'restart-tor' : 'restart',
     result.ok ? 'success' : `failed: ${result.stderr || result.stdout}`.slice(0, 500),
   );
   if (!result.ok) {
     return err(502, 'SshError', result.stderr || result.stdout || 'SSH command failed');
   }
-  const status = await runSsh(server, 'status');
+  const status = await runSsh(server, service === 'tor' ? 'status-tor' : 'status');
   return ok({ restarted: true, unitState: status.stdout || 'unknown' });
 }

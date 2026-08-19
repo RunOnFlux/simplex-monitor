@@ -10,10 +10,14 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
   const { id } = await ctx.params;
   const server = getServer(id);
   if (!server) return err(404, 'NotFound', `Unknown server ${id}`);
-  const result = await runSsh(server, 'logs');
-  recordAudit(userEmail(request), server.id, 'logs', result.ok ? 'success' : 'failed');
-  if (!result.ok) {
-    return err(502, 'SshError', result.stderr || 'SSH command failed');
+  try {
+    const result = await runSsh(server, 'logs');
+    recordAudit(userEmail(request), server.id, 'logs', result.ok ? 'success' : 'failed');
+    if (!result.ok) {
+      return err(502, 'SshError', result.stderr || 'SSH command failed');
+    }
+    return ok({ logs: result.stdout });
+  } catch (e) {
+    return err(500, 'InternalError', (e as Error).message);
   }
-  return ok({ logs: result.stdout });
 }

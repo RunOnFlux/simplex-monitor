@@ -116,10 +116,12 @@ systemctl enable --now simplex-metrics-sync.timer
 systemctl start simplex-metrics-sync.service
 echo "node_exporter serving $METRICS on :9100 (synced every 30s)"
 
-# --- 3. firewall :9100 to the VPS only ---
+# --- 3. firewall: metrics scrape + monitor SSH, from the VPS only ---
+SSH_PORT="${SSH_PORT:-1500}"
 ufw allow from "$VPS_IP" to any port 9100 proto tcp
 ufw deny 9100/tcp
-echo "ufw: 9100 allowed from $VPS_IP, denied otherwise"
+ufw allow from "$VPS_IP" to any port "$SSH_PORT" proto tcp
+echo "ufw: 9100 and ssh:$SSH_PORT allowed from $VPS_IP"
 
 # --- 4. restricted smmonitor user ---
 id smmonitor >/dev/null 2>&1 || useradd --create-home --shell /bin/bash smmonitor
@@ -131,10 +133,10 @@ if [ ! -f "$AUTH_FILE" ] || ! grep -qF "$PUBKEY" "$AUTH_FILE"; then
   echo "$AUTH_LINE" >> "$AUTH_FILE"
 fi
 chown smmonitor:smmonitor "$AUTH_FILE" && chmod 600 "$AUTH_FILE"
-echo "smmonitor ALL=(root) NOPASSWD: /usr/bin/systemctl restart ${UNIT}.service" > /etc/sudoers.d/smmonitor
+echo "smmonitor ALL=(root) NOPASSWD: /usr/bin/systemctl restart ${UNIT}.service, /usr/bin/systemctl restart tor.service" > /etc/sudoers.d/smmonitor
 chmod 440 /etc/sudoers.d/smmonitor
 visudo -cf /etc/sudoers.d/smmonitor >/dev/null
-echo "smmonitor user ready (restart ${UNIT} + journal read only)"
+echo "smmonitor user ready (restart ${UNIT}/tor + journal read only)"
 
 # --- verify metrics appear ---
 sleep 2
