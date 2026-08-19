@@ -17,9 +17,14 @@ function loadDotEnv(): void {
   const file = path.join(process.cwd(), '.env');
   if (!fs.existsSync(file)) return;
   for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
-    const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line);
-    if (m && m[1] && process.env[m[1]] === undefined) {
-      process.env[m[1]] = m[2];
+    const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*)$/.exec(line);
+    if (m && m[1] && m[2] !== undefined && process.env[m[1]] === undefined) {
+      let value = m[2].trim();
+      // Strip matching surrounding quotes, like dotenv/systemd do.
+      if (value.length >= 2 && (value[0] === '"' || value[0] === "'") && value.endsWith(value[0])) {
+        value = value.slice(1, -1);
+      }
+      process.env[m[1]] = value;
     }
   }
 }
