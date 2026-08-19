@@ -46,8 +46,25 @@
         state: directory
         mode: '0755'
 
-    # A symlink does not work: node_exporter's 'prometheus' user cannot read
-    # the server's private data dir. A root timer copies the file atomically.
+    # A symlink does not work: the SimpleX metrics file contains client-side
+    # timestamps, which the textfile collector rejects. A root timer copies the
+    # file with timestamps stripped, atomically.
+    - name: Install metrics sanitizer script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/simplex-metrics-sync
+        mode: '0755'
+        content: |
+          #!/bin/sh
+          # Usage: simplex-metrics-sync <source-metrics-file>
+          # Strips trailing client-side timestamps ("metric value ts" -> "metric value").
+          set -e
+          SRC="$1"
+          DST={{ textfile_dir }}/simplex.prom
+          [ -f "$SRC" ] || exit 0
+          sed -E 's/ (-?[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?|NaN|[+-]?Inf) [0-9]{10,}$/ \1/' "$SRC" > "$DST.tmp"
+          chmod 644 "$DST.tmp"
+          mv "$DST.tmp" "$DST"
+
     - name: Install metrics sync service
       ansible.builtin.copy:
         dest: /etc/systemd/system/simplex-metrics-sync.service
@@ -58,7 +75,7 @@
 
           [Service]
           Type=oneshot
-          ExecStart=/bin/sh -c 'if [ -f "{{ metrics_file }}" ]; then cp "{{ metrics_file }}" "{{ textfile_dir }}/simplex.prom.tmp" && chmod 644 "{{ textfile_dir }}/simplex.prom.tmp" && mv "{{ textfile_dir }}/simplex.prom.tmp" "{{ textfile_dir }}/simplex.prom"; fi'
+          ExecStart=/usr/local/bin/simplex-metrics-sync {{ metrics_file }}
 
     - name: Install metrics sync timer
       ansible.builtin.copy:

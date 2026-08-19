@@ -74,18 +74,31 @@ apt-get install -y -qq prometheus-node-exporter ufw
 systemctl enable --now prometheus-node-exporter
 TEXTFILE_DIR=/var/lib/prometheus/node-exporter
 mkdir -p "$TEXTFILE_DIR"
-# A symlink does not work here: node_exporter runs as the 'prometheus' user,
-# which must not be able to read the server's private data dir. A root-owned
-# timer copies the file instead (write-to-temp + rename = atomic, as the
-# textfile collector recommends).
+# A symlink does not work here: the SimpleX metrics file contains client-side
+# timestamps ("name value ts"), which the textfile collector rejects outright.
+# A root-owned timer copies the file with the timestamps stripped (redundant
+# anyway - Prometheus stamps scrapes itself), written atomically.
 rm -f "$TEXTFILE_DIR/simplex.prom"
+cat > /usr/local/bin/simplex-metrics-sync <<'EOF'
+#!/bin/sh
+# Usage: simplex-metrics-sync <source-metrics-file>
+# Strips trailing client-side timestamps ("metric value ts" -> "metric value").
+set -e
+SRC="$1"
+DST=/var/lib/prometheus/node-exporter/simplex.prom
+[ -f "$SRC" ] || exit 0
+sed -E 's/ (-?[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?|NaN|[+-]?Inf) [0-9]{10,}$/ \1/' "$SRC" > "$DST.tmp"
+chmod 644 "$DST.tmp"
+mv "$DST.tmp" "$DST"
+EOF
+chmod +x /usr/local/bin/simplex-metrics-sync
 cat > /etc/systemd/system/simplex-metrics-sync.service <<EOF
 [Unit]
 Description=Copy SimpleX metrics file for node_exporter textfile collector
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c 'if [ -f "$METRICS" ]; then cp "$METRICS" "$TEXTFILE_DIR/simplex.prom.tmp" && chmod 644 "$TEXTFILE_DIR/simplex.prom.tmp" && mv "$TEXTFILE_DIR/simplex.prom.tmp" "$TEXTFILE_DIR/simplex.prom"; fi'
+ExecStart=/usr/local/bin/simplex-metrics-sync $METRICS
 EOF
 cat > /etc/systemd/system/simplex-metrics-sync.timer <<'EOF'
 [Unit]
