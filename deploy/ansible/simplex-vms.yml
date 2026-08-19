@@ -141,8 +141,20 @@
         content: |
           smmonitor ALL=(root) NOPASSWD: /usr/bin/systemctl restart {{ unit_name }}.service, /usr/bin/systemctl restart tor.service
 
+    - name: Admit smmonitor from the VPS in sshd AllowUsers (when a whitelist is used)
+      ansible.builtin.replace:
+        path: /etc/ssh/sshd_config
+        regexp: '^(AllowUsers(?!.*\bsmmonitor\b).*)$'
+        replace: '\1 smmonitor@{{ monitor_vps_ip }}'
+      notify: reload sshd
+
   handlers:
     - name: restart simplex server
       ansible.builtin.systemd:
         name: "{{ unit_name }}"
         state: restarted
+
+    - name: reload sshd
+      ansible.builtin.systemd:
+        name: ssh
+        state: reloaded

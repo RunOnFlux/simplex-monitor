@@ -136,6 +136,14 @@ chown smmonitor:smmonitor "$AUTH_FILE" && chmod 600 "$AUTH_FILE"
 echo "smmonitor ALL=(root) NOPASSWD: /usr/bin/systemctl restart ${UNIT}.service, /usr/bin/systemctl restart tor.service" > /etc/sudoers.d/smmonitor
 chmod 440 /etc/sudoers.d/smmonitor
 visudo -cf /etc/sudoers.d/smmonitor >/dev/null
+
+# If sshd uses an AllowUsers whitelist, admit smmonitor from the VPS only.
+if grep -qE '^AllowUsers' /etc/ssh/sshd_config && ! grep -qE '^AllowUsers.*smmonitor' /etc/ssh/sshd_config; then
+  sed -i "0,/^AllowUsers/s/^AllowUsers.*/& smmonitor@${VPS_IP}/" /etc/ssh/sshd_config
+  sshd -t
+  systemctl reload ssh
+  echo "sshd: smmonitor@${VPS_IP} appended to AllowUsers"
+fi
 echo "smmonitor user ready (restart ${UNIT}/tor + journal read only)"
 
 # --- verify metrics appear ---
