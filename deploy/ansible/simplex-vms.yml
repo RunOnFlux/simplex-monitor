@@ -12,7 +12,7 @@
   become: true
   vars:
     unit_name: "{{ 'smp-server' if simplex_kind == 'smp' else 'xftp-server' }}"
-    ini_path: "{{ '/etc/opt/simplex/smp-server.ini' if simplex_kind == 'smp' else '/etc/opt/simplex-xftp/xftp-server.ini' }}"
+    ini_path: "{{ '/etc/opt/simplex/smp-server.ini' if simplex_kind == 'smp' else '/etc/opt/simplex-xftp/file-server.ini' }}"
     metrics_file: "{{ '/var/opt/simplex/smp-server-metrics.txt' if simplex_kind == 'smp' else '/var/opt/simplex-xftp/xftp-server-metrics.txt' }}"
     textfile_dir: /var/lib/prometheus/node-exporter
 
@@ -46,13 +46,41 @@
         state: directory
         mode: '0755'
 
-    - name: Expose SimpleX metrics via textfile collector symlink
-      ansible.builtin.file:
-        src: "{{ metrics_file }}"
-        dest: "{{ textfile_dir }}/simplex.prom"
-        state: link
-        force: true
-        follow: false
+    # A symlink does not work: node_exporter's 'prometheus' user cannot read
+    # the server's private data dir. A root timer copies the file atomically.
+    - name: Install metrics sync service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/simplex-metrics-sync.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Copy SimpleX metrics file for node_exporter textfile collector
+
+          [Service]
+          Type=oneshot
+          ExecStart=/bin/sh -c 'if [ -f "{{ metrics_file }}" ]; then cp "{{ metrics_file }}" "{{ textfile_dir }}/simplex.prom.tmp" && chmod 644 "{{ textfile_dir }}/simplex.prom.tmp" && mv "{{ textfile_dir }}/simplex.prom.tmp" "{{ textfile_dir }}/simplex.prom"; fi'
+
+    - name: Install metrics sync timer
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/simplex-metrics-sync.timer
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Sync SimpleX metrics for node_exporter every 30s
+
+          [Timer]
+          OnBootSec=30
+          OnUnitActiveSec=30
+
+          [Install]
+          WantedBy=timers.target
+
+    - name: Enable metrics sync timer
+      ansible.builtin.systemd:
+        name: simplex-metrics-sync.timer
+        daemon_reload: true
+        enabled: true
+        state: started
 
     - name: Allow node_exporter scrapes from the monitoring VPS only
       community.general.ufw:

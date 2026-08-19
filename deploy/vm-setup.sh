@@ -32,7 +32,7 @@ if unit_loaded smp-server; then
   METRICS=/var/opt/simplex/smp-server-metrics.txt
 elif unit_loaded xftp-server; then
   UNIT=xftp-server
-  INI=/etc/opt/simplex-xftp/xftp-server.ini
+  INI=/etc/opt/simplex-xftp/file-server.ini
   METRICS=/var/opt/simplex-xftp/xftp-server-metrics.txt
 else
   echo "ERROR: neither smp-server nor xftp-server unit found on this host" >&2
@@ -74,8 +74,34 @@ apt-get install -y -qq prometheus-node-exporter ufw
 systemctl enable --now prometheus-node-exporter
 TEXTFILE_DIR=/var/lib/prometheus/node-exporter
 mkdir -p "$TEXTFILE_DIR"
-ln -sfn "$METRICS" "$TEXTFILE_DIR/simplex.prom"
-echo "node_exporter serving $METRICS on :9100"
+# A symlink does not work here: node_exporter runs as the 'prometheus' user,
+# which must not be able to read the server's private data dir. A root-owned
+# timer copies the file instead (write-to-temp + rename = atomic, as the
+# textfile collector recommends).
+rm -f "$TEXTFILE_DIR/simplex.prom"
+cat > /etc/systemd/system/simplex-metrics-sync.service <<EOF
+[Unit]
+Description=Copy SimpleX metrics file for node_exporter textfile collector
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'if [ -f "$METRICS" ]; then cp "$METRICS" "$TEXTFILE_DIR/simplex.prom.tmp" && chmod 644 "$TEXTFILE_DIR/simplex.prom.tmp" && mv "$TEXTFILE_DIR/simplex.prom.tmp" "$TEXTFILE_DIR/simplex.prom"; fi'
+EOF
+cat > /etc/systemd/system/simplex-metrics-sync.timer <<'EOF'
+[Unit]
+Description=Sync SimpleX metrics for node_exporter every 30s
+
+[Timer]
+OnBootSec=30
+OnUnitActiveSec=30
+
+[Install]
+WantedBy=timers.target
+EOF
+systemctl daemon-reload
+systemctl enable --now simplex-metrics-sync.timer
+systemctl start simplex-metrics-sync.service
+echo "node_exporter serving $METRICS on :9100 (synced every 30s)"
 
 # --- 3. firewall :9100 to the VPS only ---
 ufw allow from "$VPS_IP" to any port 9100 proto tcp
