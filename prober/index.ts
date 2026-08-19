@@ -11,6 +11,7 @@ import {
 } from '../lib/db';
 import { nextIncidentAction, transportLabel, type IncidentState } from '../lib/incidents';
 import { sendAlertEmail } from '../lib/mailer';
+import { DISK_USAGE_QUERY, queryInstant } from '../lib/prometheus';
 import { TRANSPORTS, type ProbeResult, type ServerConfig, type Transport } from '../lib/types';
 import { certDaysLeft } from '../lib/uptime';
 import { checkCert } from './certs';
@@ -20,6 +21,7 @@ const log = (msg: string) => console.log(`${new Date().toISOString()} ${msg}`);
 
 const states = new Map<string, IncidentState>();
 const certWarned = new Map<string, number>();
+const diskWarned = new Map<string, number>();
 
 function stateKey(serverId: string, transport: Transport): string {
   return `${serverId}/${transport}`;
@@ -136,6 +138,29 @@ async function certCycle(servers: ServerConfig[]): Promise<void> {
   }
 }
 
+/** Hourly: warn when any server's root filesystem crosses the threshold. */
+async function diskCycle(): Promise<void> {
+  const threshold = appConfig.prober.diskWarnPercent;
+  const samples = await queryInstant(DISK_USAGE_QUERY);
+  const now = Date.now();
+  for (const s of samples) {
+    const server = s.labels.server ?? 'unknown';
+    if (s.value < threshold) continue;
+    const lastWarn = diskWarned.get(server) ?? 0;
+    if (now - lastWarn < 24 * 60 * 60 * 1000) continue;
+    diskWarned.set(server, now);
+    log(`DISK WARNING ${server}: ${s.value.toFixed(1)}% used`);
+    try {
+      await sendAlertEmail(
+        `[simplex-monitor] Disk ${s.value.toFixed(0)}% full: ${server}`,
+        `The root filesystem on ${server} is ${s.value.toFixed(1)}% full (threshold ${threshold}%).\nFree up space or grow the disk before the server fails.`,
+      );
+    } catch (err) {
+      log(`ALERT EMAIL FAILED: ${(err as Error).message}`);
+    }
+  }
+}
+
 async function main(): Promise<void> {
   const servers = loadServers();
   log(
@@ -159,6 +184,7 @@ async function main(): Promise<void> {
   process.on('SIGINT', stop);
 
   let lastCertCheck = 0;
+  let lastDiskCheck = 0;
   while (running) {
     const cycleStart = Date.now();
     try {
@@ -172,6 +198,14 @@ async function main(): Promise<void> {
         await certCycle(servers);
       } catch (err) {
         log(`cert cycle failed: ${(err as Error).message}`);
+      }
+    }
+    if (Date.now() - lastDiskCheck > 60 * 60 * 1000) {
+      lastDiskCheck = Date.now();
+      try {
+        await diskCycle();
+      } catch (err) {
+        log(`disk cycle failed: ${(err as Error).message}`);
       }
     }
     const elapsed = Date.now() - cycleStart;

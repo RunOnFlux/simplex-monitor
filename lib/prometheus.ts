@@ -63,28 +63,73 @@ const XFTP_CHARTS: ChartDef[] = [
 const HOST_CHARTS: ChartDef[] = [
   {
     id: 'cpu',
-    title: 'Host CPU usage',
+    title: 'Host CPU usage (% of all cores)',
     unit: 'percent',
     series: [
       {
-        label: 'CPU',
+        label: 'CPU busy',
         query: '100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle",server="SERVER"}[5m])))',
       },
     ],
   },
   {
     id: 'memory',
-    title: 'Host memory usage',
-    unit: 'percent',
+    title: 'Host memory',
+    unit: 'bytes',
     series: [
       {
-        label: 'Memory',
+        label: 'Used',
         query:
-          '100 * (1 - node_memory_MemAvailable_bytes{server="SERVER"} / node_memory_MemTotal_bytes{server="SERVER"})',
+          'node_memory_MemTotal_bytes{server="SERVER"} - node_memory_MemAvailable_bytes{server="SERVER"}',
       },
+      { label: 'Total', query: 'node_memory_MemTotal_bytes{server="SERVER"}' },
+    ],
+  },
+  {
+    id: 'disk',
+    title: 'Host disk (/)',
+    unit: 'bytes',
+    series: [
+      {
+        label: 'Used',
+        query:
+          'node_filesystem_size_bytes{server="SERVER",mountpoint="/"} - node_filesystem_avail_bytes{server="SERVER",mountpoint="/"}',
+      },
+      { label: 'Total', query: 'node_filesystem_size_bytes{server="SERVER",mountpoint="/"}' },
     ],
   },
 ];
+
+/** Root-filesystem usage percent for every server, keyed by the `server` label. */
+export const DISK_USAGE_QUERY =
+  'max by (server) (100 * (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}))';
+
+export interface InstantSample {
+  labels: Record<string, string>;
+  value: number;
+}
+
+interface PromVectorResponse {
+  status: string;
+  data?: { result?: { metric?: Record<string, string>; value?: [number, string] }[] };
+}
+
+export async function queryInstant(query: string): Promise<InstantSample[]> {
+  const base = appConfig.prometheusUrl;
+  if (!base) return [];
+  const url = new URL(`${base}/api/v1/query`);
+  url.searchParams.set('query', query);
+  const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+  if (!res.ok) throw new Error(`Prometheus responded ${res.status}`);
+  const body = (await res.json()) as PromVectorResponse;
+  if (body.status !== 'success') throw new Error('Prometheus query failed');
+  return (body.data?.result ?? [])
+    .map((r) => ({
+      labels: r.metric ?? {},
+      value: Number.parseFloat(r.value?.[1] ?? 'NaN'),
+    }))
+    .filter((s) => Number.isFinite(s.value));
+}
 
 export function chartsForKind(kind: ServerKind): ChartDef[] {
   return [...(kind === 'smp' ? SMP_CHARTS : XFTP_CHARTS), ...HOST_CHARTS];

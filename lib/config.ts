@@ -91,6 +91,7 @@ export const appConfig = {
       torSocks: env('TOR_SOCKS', '127.0.0.1:9050'),
       retentionDays: envInt('PROBE_RETENTION_DAYS', 90),
       certWarnDays: envInt('CERT_WARN_DAYS', 14),
+      diskWarnPercent: envInt('DISK_WARN_PERCENT', 90),
       ipv6Enabled: envBool('PROBE_IPV6', true),
     };
   },
