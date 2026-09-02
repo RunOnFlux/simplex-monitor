@@ -19,8 +19,14 @@ Monitoring dashboard and probe engine for the SimpleX SMP/XFTP fleet
   still works.
 - **Uptime & incidents.** Probe history is stored in SQLite; the dashboard shows
   per-transport uptime (24h/7d/30d), Uptime-Kuma-style 90-day bars, and derived
-  incidents. Incidents open after N consecutive failures and close on recovery,
-  with email alerts both ways.
+  incidents. Incidents open after N consecutive failed checks and close on
+  recovery, with email alerts both ways.
+- **Noise-resistant alerting.** Each check retries a few times before it counts
+  as failed (`PROBE_RETRIES`), an incident needs several consecutive failed
+  checks (`PROBE_FAIL_THRESHOLD`), and the DOWN email is only sent once the
+  outage has lasted `PROBE_ALERT_AFTER_MIN` minutes. Short blips are recorded in
+  the history and visible on the dashboard, but never mailed — and no RECOVERED
+  mail is sent for an outage that never triggered a DOWN mail.
 - **Server stats.** The SimpleX servers' native Prometheus metrics (enabled with
   one INI line, served through node_exporter's textfile collector) are scraped by
   a local Prometheus; the dashboard charts messages/queues/clients (SMP), file

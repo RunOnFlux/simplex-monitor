@@ -39,6 +39,8 @@ export interface IncidentRow {
   started_at: number;
   ended_at: number | null;
   fail_count: number;
+  /** when the DOWN email was sent; null while the incident is still unconfirmed */
+  alerted_at: number | null;
 }
 
 export interface CertRow {

@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS incidents (
   transport TEXT NOT NULL,
   started_at INTEGER NOT NULL,
   ended_at INTEGER,
-  fail_count INTEGER NOT NULL DEFAULT 0
+  fail_count INTEGER NOT NULL DEFAULT 0,
+  alerted_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_incidents_open ON incidents (server_id, transport, ended_at);
 
@@ -73,7 +74,18 @@ export function getDb(): Database.Database {
   db.pragma('journal_mode = WAL');
   db.pragma('busy_timeout = 5000');
   db.exec(SCHEMA);
+  migrate(db);
   return db;
+}
+
+/** Additive migrations for databases created by older versions. */
+function migrate(handle: Database.Database): void {
+  const cols = handle.prepare('PRAGMA table_info(incidents)').all() as { name: string }[];
+  if (!cols.some((c) => c.name === 'alerted_at')) {
+    handle.exec('ALTER TABLE incidents ADD COLUMN alerted_at INTEGER');
+    // Incidents that predate alert gating were all emailed when they opened.
+    handle.exec('UPDATE incidents SET alerted_at = started_at WHERE alerted_at IS NULL');
+  }
 }
 
 // --- probes ---
@@ -157,6 +169,10 @@ export function openIncident(
     )
     .run(serverId, transport, startedAt, failCount);
   return Number(res.lastInsertRowid);
+}
+
+export function markIncidentAlerted(id: number, ts: number): void {
+  getDb().prepare('UPDATE incidents SET alerted_at = ? WHERE id = ?').run(ts, id);
 }
 
 export function bumpIncidentFailCount(id: number): void {

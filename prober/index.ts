@@ -5,11 +5,18 @@ import {
   getOpenIncident,
   getRecentFails,
   insertProbe,
+  markIncidentAlerted,
   openIncident,
   pruneProbes,
   upsertCert,
 } from '../lib/db';
-import { nextIncidentAction, transportLabel, type IncidentState } from '../lib/incidents';
+import {
+  freshIncidentState,
+  nextIncidentAction,
+  transportLabel,
+  type IncidentOptions,
+  type IncidentState,
+} from '../lib/incidents';
 import { sendAlertEmail } from '../lib/mailer';
 import { DISK_USAGE_QUERY, queryInstant } from '../lib/prometheus';
 import { TRANSPORTS, type ProbeResult, type ServerConfig, type Transport } from '../lib/types';
@@ -27,6 +34,13 @@ function stateKey(serverId: string, transport: Transport): string {
   return `${serverId}/${transport}`;
 }
 
+function incidentOptions(): IncidentOptions {
+  return {
+    failThreshold: appConfig.prober.failThreshold,
+    alertAfterMs: appConfig.prober.alertAfterMin * 60 * 1000,
+  };
+}
+
 /** Rebuild in-memory incident state from the database after a restart. */
 function initStates(servers: ServerConfig[]): void {
   const threshold = appConfig.prober.failThreshold;
@@ -35,13 +49,18 @@ function initStates(servers: ServerConfig[]): void {
       const open = getOpenIncident(server.id, transport);
       const recent = getRecentFails(server.id, transport, threshold);
       let consecutiveFails = 0;
+      let firstFailTs: number | null = null;
       for (const row of recent) {
-        if (row.ok === 0) consecutiveFails += 1;
-        else break;
+        if (row.ok === 0) {
+          consecutiveFails += 1;
+          firstFailTs = row.ts;
+        } else break;
       }
       states.set(stateKey(server.id, transport), {
         consecutiveFails,
+        firstFailTs: open ? open.started_at : firstFailTs,
         openIncidentId: open ? open.id : null,
+        alerted: open ? open.alerted_at !== null : false,
       });
     }
   }
@@ -50,31 +69,44 @@ function initStates(servers: ServerConfig[]): void {
 async function handleResult(server: ServerConfig, result: ProbeResult): Promise<void> {
   insertProbe(result);
   const key = stateKey(server.id, result.transport);
-  const prev = states.get(key) ?? { consecutiveFails: 0, openIncidentId: null };
-  const { state, action } = nextIncidentAction(prev, result.ok, appConfig.prober.failThreshold);
+  const prev = states.get(key) ?? { ...freshIncidentState };
+  const decision = nextIncidentAction(prev, result.ok, result.ts, incidentOptions());
+  const { state, action } = decision;
   const label = transportLabel(result.transport);
 
   if (action.type === 'open') {
-    const id = openIncident(server.id, result.transport, result.ts, action.failCount);
+    const startedAt = state.firstFailTs ?? result.ts;
+    const id = openIncident(server.id, result.transport, startedAt, action.failCount);
     state.openIncidentId = id;
     log(`INCIDENT OPEN ${server.name} ${label}: ${result.error ?? 'down'}`);
-    try {
-      await sendAlertEmail(
-        `[simplex-monitor] DOWN: ${server.name} (${label})`,
-        `${server.name} is failing checks over ${label}.\n\nLast error: ${result.error ?? 'unknown'}\nConsecutive failures: ${action.failCount}\nTime: ${new Date(result.ts).toISOString()}\n\nDashboard: check the fleet page for details.`,
-      );
-    } catch (err) {
-      log(`ALERT EMAIL FAILED: ${(err as Error).message}`);
-    }
   } else if (action.type === 'bump' && prev.openIncidentId !== null) {
     bumpIncidentFailCount(prev.openIncidentId);
   } else if (action.type === 'close' && prev.openIncidentId !== null) {
     closeIncident(prev.openIncidentId, result.ts);
     log(`INCIDENT CLOSED ${server.name} ${label}`);
+  }
+
+  if (decision.alertDown && state.openIncidentId !== null) {
+    markIncidentAlerted(state.openIncidentId, result.ts);
+    const downForMin =
+      Math.round(((result.ts - (state.firstFailTs ?? result.ts)) / 60000) * 10) / 10;
+    log(`ALERT DOWN ${server.name} ${label} (down ${downForMin}min)`);
+    try {
+      await sendAlertEmail(
+        `[simplex-monitor] DOWN: ${server.name} (${label})`,
+        `${server.name} has been failing checks over ${label} for ${downForMin} minute(s).\n\nLast error: ${result.error ?? 'unknown'}\nFailed checks in a row: ${state.consecutiveFails} (each check retries ${appConfig.prober.retries} time(s) before it counts as failed)\nFirst failure: ${new Date(state.firstFailTs ?? result.ts).toISOString()}\nTime: ${new Date(result.ts).toISOString()}\n\nDashboard: check the fleet page for details.`,
+      );
+    } catch (err) {
+      log(`ALERT EMAIL FAILED: ${(err as Error).message}`);
+    }
+  } else if (decision.alertRecovered) {
+    const downForMin =
+      Math.round(((result.ts - (prev.firstFailTs ?? result.ts)) / 60000) * 10) / 10;
+    log(`ALERT RECOVERED ${server.name} ${label}`);
     try {
       await sendAlertEmail(
         `[simplex-monitor] RECOVERED: ${server.name} (${label})`,
-        `${server.name} is passing checks again over ${label}.\nTime: ${new Date(result.ts).toISOString()}`,
+        `${server.name} is passing checks again over ${label} after ${downForMin} minute(s) down.\nTime: ${new Date(result.ts).toISOString()}`,
       );
     } catch (err) {
       log(`ALERT EMAIL FAILED: ${(err as Error).message}`);
@@ -164,7 +196,9 @@ async function diskCycle(): Promise<void> {
 async function main(): Promise<void> {
   const servers = loadServers();
   log(
-    `simplex-monitor prober starting: ${servers.length} servers, interval ${appConfig.prober.intervalSec}s`,
+    `simplex-monitor prober starting: ${servers.length} servers, interval ${appConfig.prober.intervalSec}s, ` +
+      `${appConfig.prober.retries} retries/check, alert after ${appConfig.prober.failThreshold} failed checks ` +
+      `and ${appConfig.prober.alertAfterMin}min down`,
   );
 
   const lanes: Transport[] = appConfig.prober.ipv6Enabled

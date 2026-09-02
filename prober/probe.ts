@@ -109,6 +109,54 @@ export async function ensureProfile(transport: Transport): Promise<void> {
   }
 }
 
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Runs one `/_server test` attempt and reports whether it passed. */
+async function attempt(
+  server: ServerConfig,
+  transport: Transport,
+  address: string,
+): Promise<{ ok: boolean; latencyMs: number; error: string | null }> {
+  const args = [
+    '--tcp-timeout',
+    String(appConfig.prober.tcpTimeoutSec),
+    '-t',
+    '0',
+    '-d',
+    profileDbPath(transport),
+  ];
+  if (transport === 'tor') {
+    args.push('--socks-proxy', appConfig.prober.torSocks);
+  }
+  args.push('-e', `/_server test 1 ${address}`);
+
+  const start = Date.now();
+  const run = await runCli(args, transport);
+  const latencyMs = Date.now() - start;
+  if (server.kind === 'xftp') cleanTmp(transport);
+
+  if (run.stdout.includes('passed')) return { ok: true, latencyMs, error: null };
+  if (run.timedOut) {
+    return { ok: false, latencyMs, error: `timeout after ${appConfig.prober.timeoutSec}s` };
+  }
+  const detail =
+    run.stdout
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .slice(-1)[0] ?? run.stderr.trim().slice(0, 200);
+  return {
+    ok: false,
+    latencyMs,
+    error: detail || `simplex-chat exited with code ${run.code}`,
+  };
+}
+
+/**
+ * A single check: up to `retries` extra attempts, spaced by `retryDelaySec`.
+ * One dropped TCP handshake or a slow Tor circuit is normal noise, so a check
+ * only counts as failed when every attempt failed.
+ */
 export async function probeServer(
   server: ServerConfig,
   transport: Transport,
@@ -130,42 +178,29 @@ export async function probeServer(
     ip = resolved;
   }
   const address = buildAddress(server, transport, ip);
-  const args = ['--tcp-timeout', '15', '-t', '0', '-d', profileDbPath(transport)];
-  if (transport === 'tor') {
-    args.push('--socks-proxy', appConfig.prober.torSocks);
-  }
-  args.push('-e', `/_server test 1 ${address}`);
 
-  const start = Date.now();
-  const run = await runCli(args, transport);
-  const latencyMs = Date.now() - start;
-  if (server.kind === 'xftp') cleanTmp(transport);
-
-  if (run.stdout.includes('passed')) {
-    return { serverId: server.id, transport, ts, ok: true, latencyMs, error: null };
+  const total = Math.max(1, appConfig.prober.retries + 1);
+  let last = { ok: false, latencyMs: 0, error: 'no attempt made' as string | null };
+  for (let i = 0; i < total; i += 1) {
+    if (i > 0) await sleep(appConfig.prober.retryDelaySec * 1000);
+    last = await attempt(server, transport, address);
+    if (last.ok) {
+      return {
+        serverId: server.id,
+        transport,
+        ts,
+        ok: true,
+        latencyMs: last.latencyMs,
+        error: null,
+      };
+    }
   }
-  if (run.timedOut) {
-    return {
-      serverId: server.id,
-      transport,
-      ts,
-      ok: false,
-      latencyMs: null,
-      error: `timeout after ${appConfig.prober.timeoutSec}s`,
-    };
-  }
-  const detail =
-    run.stdout
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .slice(-1)[0] ?? run.stderr.trim().slice(0, 200);
   return {
     serverId: server.id,
     transport,
     ts,
     ok: false,
     latencyMs: null,
-    error: detail || `simplex-chat exited with code ${run.code}`,
+    error: total > 1 ? `${last.error} (${total} attempts)` : last.error,
   };
 }

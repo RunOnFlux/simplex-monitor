@@ -86,8 +86,15 @@ export const appConfig = {
       simplexChatBin: env('SIMPLEX_CHAT_BIN', '/usr/local/bin/simplex-chat'),
       probeDbDir: env('PROBE_DB_DIR', './data/probe-profiles'),
       intervalSec: envInt('PROBE_INTERVAL', 180),
-      timeoutSec: envInt('PROBE_TIMEOUT', 60),
-      failThreshold: envInt('PROBE_FAIL_THRESHOLD', 2),
+      timeoutSec: envInt('PROBE_TIMEOUT', 90),
+      /** Passed to simplex-chat as --tcp-timeout: how long one connection attempt may take. */
+      tcpTimeoutSec: envInt('PROBE_TCP_TIMEOUT', 30),
+      /** Extra attempts within a single check before it counts as a failure. */
+      retries: envInt('PROBE_RETRIES', 2),
+      retryDelaySec: envInt('PROBE_RETRY_DELAY', 10),
+      failThreshold: envInt('PROBE_FAIL_THRESHOLD', 3),
+      /** A down alert is only emailed once failures have persisted this long. */
+      alertAfterMin: envInt('PROBE_ALERT_AFTER_MIN', 10),
       torSocks: env('TOR_SOCKS', '127.0.0.1:9050'),
       retentionDays: envInt('PROBE_RETENTION_DAYS', 90),
       certWarnDays: envInt('CERT_WARN_DAYS', 14),
