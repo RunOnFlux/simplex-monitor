@@ -33,8 +33,12 @@ Monitoring dashboard and probe engine for the SimpleX SMP/XFTP fleet
   activity/storage (XFTP) and host CPU/memory.
 - **TLS certificate expiry** checks daily, with alerts 14 days out.
 - **Restarts & logs** from the dashboard over SSH, restricted on the VM side to
-  `systemctl restart <unit>` (sudoers) and journal reads. Every action lands in
-  the audit log.
+  `systemctl restart <unit>` (sudoers) and journal reads. Journal reads take a
+  time window (presets from 15 min to 7 days, or a custom from/to) plus a line
+  cap, and can be downloaded as a `.log` file. Timestamps are re-formatted
+  server-side into `journalctl --since/--until` UTC values, so nothing typed in
+  the browser reaches the remote command. Every action lands in the audit log
+  with the window that was requested.
 - **Email-code login.** Only allowlisted emails can log in; they receive a
   6-digit code by email (10 min validity), then get a 7-day session cookie.
   Responses don't reveal whether an email is allowlisted; requests are

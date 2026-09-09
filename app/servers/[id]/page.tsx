@@ -163,16 +163,62 @@ function RestartPanel({ serverId }: { serverId: string }) {
   );
 }
 
+const LOG_PRESETS = [
+  { id: '15m', label: 'Last 15 min', minutes: 15 },
+  { id: '1h', label: 'Last hour', minutes: 60 },
+  { id: '6h', label: 'Last 6 hours', minutes: 360 },
+  { id: '24h', label: 'Last 24 hours', minutes: 1440 },
+  { id: '7d', label: 'Last 7 days', minutes: 10080 },
+  { id: 'custom', label: 'Custom range', minutes: null },
+] as const;
+type LogPreset = (typeof LOG_PRESETS)[number]['id'];
+
+/** `datetime-local` values are local wall time; Date parses them as such. */
+function localInputToIso(value: string): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 function LogsPanel({ serverId }: { serverId: string }) {
   const [logs, setLogs] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preset, setPreset] = useState<LogPreset>('1h');
+  const [since, setSince] = useState('');
+  const [until, setUntil] = useState('');
+  const [lines, setLines] = useState(200);
+
+  const buildQuery = (): string | null => {
+    const params = new URLSearchParams({ lines: String(lines) });
+    const chosen = LOG_PRESETS.find((p) => p.id === preset);
+    if (chosen && chosen.minutes !== null) {
+      params.set('since', new Date(Date.now() - chosen.minutes * 60000).toISOString());
+    } else {
+      const sinceIso = localInputToIso(since);
+      const untilIso = localInputToIso(until);
+      if (!sinceIso && !untilIso) {
+        setError('Pick a from and/or to time for a custom range');
+        return null;
+      }
+      if (sinceIso && untilIso && sinceIso >= untilIso) {
+        setError('"From" must be earlier than "to"');
+        return null;
+      }
+      if (sinceIso) params.set('since', sinceIso);
+      if (untilIso) params.set('until', untilIso);
+    }
+    return params.toString();
+  };
 
   const load = async () => {
-    setBusy(true);
     setError(null);
+    const query = buildQuery();
+    if (query === null) return;
+    setBusy(true);
     try {
-      const res = await apiFetch<{ logs: string }>(`/api/servers/${serverId}/logs`);
+      const res = await apiFetch<{ logs: string }>(`/api/servers/${serverId}/logs?${query}`);
       setLogs(res.logs);
     } catch (e) {
       setError((e as Error).message);
@@ -181,19 +227,112 @@ function LogsPanel({ serverId }: { serverId: string }) {
     }
   };
 
+  const download = async () => {
+    setError(null);
+    const query = buildQuery();
+    if (query === null) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/servers/${serverId}/logs?${query}&format=text`);
+      if (!res.ok) {
+        // The error path still answers with our JSON envelope.
+        const body = (await res.json().catch(() => null)) as {
+          data?: { message?: string };
+        } | null;
+        throw new Error(body?.data?.message ?? `Download failed (HTTP ${res.status})`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${serverId}-journal.log`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const inputStyle = {
+    borderColor: 'var(--border)',
+    color: 'var(--ink-2)',
+    background: 'var(--page)',
+  };
+
   return (
     <div className="card p-4">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--ink-2)' }}>
-          Journal (last 200 lines)
-        </h3>
+      <h3 className="mb-3 text-sm font-semibold" style={{ color: 'var(--ink-2)' }}>
+        Journal
+      </h3>
+      <div className="mb-3 flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1 text-xs" style={{ color: 'var(--ink-2)' }}>
+          Range
+          <select
+            value={preset}
+            onChange={(e) => setPreset(e.target.value as LogPreset)}
+            className="rounded-md border px-2 py-1 text-sm"
+            style={inputStyle}
+          >
+            {LOG_PRESETS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {preset === 'custom' && (
+          <>
+            <label className="flex flex-col gap-1 text-xs" style={{ color: 'var(--ink-2)' }}>
+              From
+              <input
+                type="datetime-local"
+                value={since}
+                onChange={(e) => setSince(e.target.value)}
+                className="rounded-md border px-2 py-1 text-sm"
+                style={inputStyle}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs" style={{ color: 'var(--ink-2)' }}>
+              To
+              <input
+                type="datetime-local"
+                value={until}
+                onChange={(e) => setUntil(e.target.value)}
+                className="rounded-md border px-2 py-1 text-sm"
+                style={inputStyle}
+              />
+            </label>
+          </>
+        )}
+        <label className="flex flex-col gap-1 text-xs" style={{ color: 'var(--ink-2)' }}>
+          Max lines
+          <input
+            type="number"
+            min={1}
+            max={20000}
+            value={lines}
+            onChange={(e) => setLines(Number(e.target.value))}
+            className="w-24 rounded-md border px-2 py-1 text-sm"
+            style={inputStyle}
+          />
+        </label>
         <button
           onClick={load}
           disabled={busy}
-          className="rounded-md border px-3 py-1 text-sm disabled:opacity-60"
+          className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-60"
           style={{ borderColor: 'var(--border)', color: 'var(--ink-2)' }}
         >
           {busy ? 'Loading…' : logs ? 'Refresh' : 'Load logs'}
+        </button>
+        <button
+          onClick={download}
+          disabled={downloading}
+          className="rounded-md border px-3 py-1.5 text-sm disabled:opacity-60"
+          style={{ borderColor: 'var(--border)', color: 'var(--ink-2)' }}
+        >
+          {downloading ? 'Preparing…' : 'Download .log'}
         </button>
       </div>
       {error && (
